@@ -218,7 +218,12 @@ def run():
                     name_val    = raw_name if (0 < len(raw_name) <= 60) else 'Could not detect'
                     email_val   = resume_data.get('email', '') or 'Could not detect'
                     contact_val = resume_data.get('mobile_number', '') or 'Could not detect'
-                    degree_val  = str(resume_data.get('degree', '') or 'N/A')
+                    degree_raw  = resume_data.get('degree', [])
+                    # degree is a list — join to readable string
+                    if isinstance(degree_raw, list):
+                        degree_val = ', '.join(degree_raw) if degree_raw else 'N/A'
+                    else:
+                        degree_val = str(degree_raw) if degree_raw else 'N/A'
                     st.text('Name: '        + name_val)
                     st.text('Email: '       + email_val)
                     st.text('Contact: '     + contact_val)

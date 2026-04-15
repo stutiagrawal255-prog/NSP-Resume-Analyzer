@@ -61,8 +61,9 @@ PHONE_RE  = re.compile(
     r'(?:\+91[\-\s]?)?(?:\d{5}[\-\s]?\d{5}|\d{10}|\(\d{3}\)\s?\d{3}[\-\s]?\d{4}|\d{3}[\-\s]?\d{3}[\-\s]?\d{4})'
 )
 DEGREE_RE = re.compile(
-    r'\b(B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?Sc|M\.?Sc|B\.?Com|M\.?Com|'
-    r'BCA|MCA|B\.?A|M\.?A|MBA|PhD|Ph\.?D|Bachelor|Master|Associate|Diploma)\b',
+    r'\b(B\.?\s*Tech|M\.?\s*Tech|B\.?\s*E\b|M\.?\s*E\b|B\.?\s*Sc|M\.?\s*Sc|'
+    r'B\.?\s*Com|M\.?\s*Com|BCA|MCA|B\.?\s*A\b|M\.?\s*A\b|MBA|PhD|Ph\.?\s*D|'
+    r'Bachelor|Master|Associate|Diploma)\b',
     re.IGNORECASE
 )
 
@@ -158,29 +159,37 @@ def _looks_like_name(text: str) -> bool:
 
 def _extract_name(raw_text: str) -> str:
     """
-    Extract the person's name from the top portion of the resume.
-
-    Strategy:
-    1. Take first 600 chars of raw text (the header area).
-    2. Remove emails, phone numbers, URLs so they don't confuse the matcher.
-    3. Find the FIRST match of a 2-4 word Title-Case group that looks like a name.
-    This works even when lines are collapsed together (email/phone on same line as name).
+    Extract person name by walking word-by-word from the very start
+    of the cleaned resume header.
+    The name is ALWAYS the first thing; we stop at the first job-title
+    or section keyword word (Analyst, Engineer, Security, etc.).
     """
-    # Work on compact header region
-    header = raw_text[:600]
+    header = raw_text[:800]
 
-    # Strip noise: emails, phones, URLs, special chars
-    header = EMAIL_RE.sub(' ', header)
-    header = PHONE_RE.sub(' ', header)
-    header = re.sub(r'https?://\S+', ' ', header)
-    header = re.sub(r'[,|•·/\\@#]', ' ', header)
+    # Remove noise so contact info doesn't confuse us
+    header = EMAIL_RE.sub(' ', header)          # remove emails
+    header = PHONE_RE.sub(' ', header)          # remove phone numbers
+    header = re.sub(r'https?://\S+', ' ', header)  # remove URLs
+    header = re.sub(r'[,|\u2022\xb7/\\@#]', ' ', header)  # remove punctuation
+    header = re.sub(r'\d+', ' ', header)        # remove all digit sequences
     header = re.sub(r'\s+', ' ', header).strip()
 
-    # Find first Title-Case word group that passes the name test
-    for m in NAME_RE.finditer(header):
-        candidate = m.group(1)
-        if _looks_like_name(candidate):
-            return candidate
+    # Walk word-by-word; collect only valid name words
+    # Stop as soon as a word is a job title/section/non-name word
+    name_words = []
+    for word in header.split()[:10]:
+        # Must be Title-Case (Uppercase first, remaining lowercase-dominated)
+        if not re.match(r'^[A-Z][a-z]+$', word):
+            break
+        # Stop at known non-name words (job titles, sections, etc.)
+        if word.lower() in SKIP_WORDS:
+            break
+        name_words.append(word)
+        if len(name_words) == 4:   # max 4-word name
+            break
+
+    if len(name_words) >= 2:
+        return ' '.join(name_words)
 
     return 'Unknown'
 
