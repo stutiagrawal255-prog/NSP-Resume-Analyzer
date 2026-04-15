@@ -8,7 +8,7 @@ if exist "venvapp\Scripts\python.exe" (
   if %errorlevel%==0 (
     set PORT=8502
   )
-  echo Starting AI Resume Analyzer on port %PORT%...
+  echo Starting NSP Resume Analyzer on port %PORT%...
   "venvapp\Scripts\python.exe" -m streamlit run "App\App.py" --server.headless true --server.port %PORT%
 ) else (
   echo Python virtual environment not found at venvapp\Scripts\python.exe

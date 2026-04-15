@@ -132,7 +132,7 @@ def insertf_data(feed_name, feed_email, feed_score, comments, Timestamp):
 ###### Page Config ######
 
 st.set_page_config(
-    page_title="AI Resume Analyzer",
+    page_title="NSP Resume Analyzer",
     page_icon='./Logo/recommend.png',
 )
 
@@ -148,7 +148,7 @@ def run():
         img = Image.open('./Logo/RESUM.png')
         st.image(img)
     except Exception:
-        st.title("🤖 AI Resume Analyzer")
+        st.title("🤖 NSP Resume Analyzer")
 
     st.sidebar.markdown("# Choose Something...")
     activities = ["User", "Feedback", "About", "Admin"]
@@ -449,7 +449,7 @@ def run():
 
     ###### ABOUT ######
     elif choice == 'About':
-        st.subheader("**About The Tool - AI RESUME ANALYZER**")
+        st.subheader("**About The Tool - NSP RESUME ANALYZER**")
         st.markdown('''
         <p align='justify'>
             A tool which parses information from a resume using natural language processing and finds the keywords,

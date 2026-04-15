@@ -25,7 +25,7 @@ if "%PORT%"=="" (
   exit /b 1
 )
 
-echo Starting AI Resume Analyzer server on port %PORT%...
+echo Starting NSP Resume Analyzer server on port %PORT%...
 echo Local URL   : http://localhost:%PORT%
 echo Network URL : http://^<your-local-ip^>:%PORT%
 echo.
