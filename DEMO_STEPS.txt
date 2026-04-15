@@ -1,0 +1,19 @@
+NSP Resume Analyzer - Run Steps
+===============================
+
+Option A: Run as local app
+1) Double-click RUN_OFFLINE.bat
+2) Open browser with printed URL (8501/8502)
+
+Option B: Run as server (for other devices too)
+1) Double-click RUN_SERVER.bat
+2) Open browser with printed URL (8501/8502/8503)
+3) Share Network URL on same Wi-Fi/LAN
+
+Admin login:
+- username: admin
+- password: admin@resume-analyzer
+
+Notes:
+- Keep folder structure unchanged for correct run.
+- If network access fails, allow Python/selected port in Windows Firewall.
