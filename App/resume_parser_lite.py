@@ -7,7 +7,7 @@ the visually topmost content (i.e., the person's name).
 import re
 import io
 from pdfminer.high_level import extract_text_to_fp, extract_text, extract_pages
-from pdfminer.layout import LAParams, LTTextBox, LTTextLine, LTAnon, LTChar
+from pdfminer.layout import LAParams, LTTextBox, LTTextLine
 
 
 # ─── Skills database ──────────────────────────────────────────────────────────
