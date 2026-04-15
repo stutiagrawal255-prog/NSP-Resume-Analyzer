@@ -19,6 +19,10 @@ SKILLS_DB = [
     'html', 'css', 'react', 'react js', 'angular', 'angular js', 'vue', 'vue js',
     'node', 'node js', 'nodejs', 'express', 'django', 'flask', 'fastapi', 'spring',
     'asp.net', 'laravel', 'wordpress', 'magento', 'bootstrap', 'jquery',
+    # Cybersecurity
+    'penetration testing', 'vulnerability assessment', 'siem', 'wireshark', 'nmap',
+    'burp suite', 'metasploit', 'threat detection', 'incident response',
+    'network security', 'ethical hacking', 'cryptography', 'intrusion detection',
     # Data Science / ML
     'machine learning', 'deep learning', 'tensorflow', 'keras', 'pytorch', 'scikit-learn',
     'pandas', 'numpy', 'matplotlib', 'seaborn', 'plotly', 'nlp', 'computer vision',
@@ -45,11 +49,18 @@ SKILLS_DB = [
 
 # ─── Regex patterns ───────────────────────────────────────────────────────────
 
-# TLD limited to 2-6 chars + negative lookahead so regex stops at .com
-# and does NOT consume concatenated words like LINKSGithub
-EMAIL_RE    = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,6}(?![a-zA-Z])')
-PHONE_RE    = re.compile(r'(?:\+91[\-\s]?)?(?:\d{5}[\-\s]?\d{5}|\d{10}|\(\d{3}\)\s?\d{3}[\-\s]?\d{4}|\d{3}[\-\s]?\d{3}[\-\s]?\d{4})')
-DEGREE_RE   = re.compile(
+# KEY FIX: Use [a-z]{2,6} (lowercase only) for TLD, then (?![a-z]) lookahead.
+# Real email TLDs are always lowercase (gmail.com, yahoo.co.in).
+# Section headers that follow are uppercase (LINKS, GITHUB) so lookahead passes.
+# e.g. "gmail.comLINKS" → TLD=com, next='L' (uppercase) → NOT [a-z] → MATCH ✓
+# e.g. "gmail.comlinks" → TLD=com, next='l' (lowercase) → IS [a-z]  → tries longer TLD
+#      → eventually no valid match, falls back to just "com" if possible
+EMAIL_RE  = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-z]{2,6}(?![a-z])')
+
+PHONE_RE  = re.compile(
+    r'(?:\+91[\-\s]?)?(?:\d{5}[\-\s]?\d{5}|\d{10}|\(\d{3}\)\s?\d{3}[\-\s]?\d{4}|\d{3}[\-\s]?\d{3}[\-\s]?\d{4})'
+)
+DEGREE_RE = re.compile(
     r'\b(B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?Sc|M\.?Sc|B\.?Com|M\.?Com|'
     r'BCA|MCA|B\.?A|M\.?A|MBA|PhD|Ph\.?D|Bachelor|Master|Associate|Diploma)\b',
     re.IGNORECASE
@@ -78,14 +89,12 @@ SECTION_KEYWORDS = [
 def extract_text_from_pdf(pdf_path: str) -> str:
     """Extract text preserving as many line-breaks as possible."""
     try:
-        # Try with generous line-margin so nearby lines aren't merged
         laparams = LAParams(line_margin=0.3, word_margin=0.1, boxes_flow=0.5)
         text = extract_text(pdf_path, laparams=laparams)
         if text and len(text.strip()) > 20:
             return text
     except Exception:
         pass
-    # Fallback
     output = io.StringIO()
     with open(pdf_path, 'rb') as f:
         extract_text_to_fp(f, output, laparams=LAParams(), output_type='text', codec='utf-8')
@@ -103,15 +112,9 @@ def count_pages(pdf_path: str) -> int:
 # ─── Smart text pre-processing ───────────────────────────────────────────────
 
 def _insert_breaks_before_sections(text: str) -> str:
-    """
-    Insert newlines before known section headers so collapsed text gets split.
-    e.g. '...git.LinkedinGithubSkills' -> '...git.\nLinkedin\nGithub\nSkills'
-    """
-    # Insert newline before each Section keyword that appears mid-word-run
+    """Insert newlines before known section headers to un-collapse PDF text."""
     for kw in SECTION_KEYWORDS:
-        # Capitalised variants
         for variant in (kw.title(), kw.upper(), kw.capitalize()):
-            # Only insert break if the keyword is preceded by a non-space char
             text = re.sub(r'(?<=[^\n])(' + re.escape(variant) + r')', r'\n\1', text)
     return text
 
@@ -125,79 +128,59 @@ def _clean_lines(text: str):
 
 # ─── Name extraction ─────────────────────────────────────────────────────────
 
-# Pattern: 2-3 words all starting with capital letter (full-line match)
-NAME_PATTERN_FULL = re.compile(
-    r'^([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+){1,3})$'
-)
-# Pattern: name at START of a line even if more text follows
-NAME_PATTERN_START = re.compile(
-    r'^([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+){1,2})(?=\s*(?:[A-Z]{2,}|\d|@|$))'
-)
-# Pattern: search anywhere — e.g. "Hello, I am Deepesh Mahawar" (less reliable)
-NAME_PATTERN_ANY = re.compile(
-    r'\b([A-Z][a-z]+(?:\s[A-Z][a-z]+){1,2})\b'
-)
-
-SKIP_LINES = {
-    'curriculum vitae', 'resume', 'cv', 'profile', 'bio-data',
-    'contact', 'skills', 'experience', 'education', 'projects',
-    'certifications', 'achievements', 'summary', 'objective',
-    'links', 'linkedin', 'github',
-}
-
+# Words that are NOT parts of a person's name
 SKIP_WORDS = {
     'contact', 'links', 'github', 'linkedin', 'skills', 'experience',
     'education', 'projects', 'certifications', 'achievements', 'internship',
     'languages', 'profile', 'summary', 'objective', 'address', 'phone',
-    'email', 'mobile',
+    'email', 'mobile', 'analyst', 'engineer', 'developer', 'manager',
+    'intern', 'student', 'undergraduate', 'science', 'technology',
+    'information', 'computer', 'engineering', 'cyber', 'security',
 }
+
+# Title-Case name: 2–4 words, each starting with uppercase
+NAME_RE = re.compile(r'\b([A-Z][a-z]+(?:\s[A-Z][a-z]+){1,3})\b')
 
 
 def _looks_like_name(text: str) -> bool:
-    """Return True if text looks like a person's name (2-3 Title-Case words)."""
+    """Return True if text looks like a 2-4 word person's name."""
     words = text.strip().split()
     if not (2 <= len(words) <= 4):
         return False
-    if any(c.isdigit() for c in text) or '@' in text:
+    if any(c.isdigit() for c in text) or '@' in text or ',' in text:
         return False
+    # Reject if any word is a known non-name word
     if any(w.lower() in SKIP_WORDS for w in words):
         return False
+    # All words must start with uppercase
     return all(w[0].isupper() for w in words)
 
 
-def _extract_name(lines) -> str:
+def _extract_name(raw_text: str) -> str:
     """
-    Walk first 20 lines trying multiple strategies to find a person's name.
-    Strategy 1: Exact full-line Title-Case match (most reliable)
-    Strategy 2: Name at start of a line (works when lines are semi-collapsed)
-    Strategy 3: First Title-Case 2-word token found anywhere in top lines
+    Extract the person's name from the top portion of the resume.
+
+    Strategy:
+    1. Take first 600 chars of raw text (the header area).
+    2. Remove emails, phone numbers, URLs so they don't confuse the matcher.
+    3. Find the FIRST match of a 2-4 word Title-Case group that looks like a name.
+    This works even when lines are collapsed together (email/phone on same line as name).
     """
-    # Strategy 1 – full-line match
-    for line in lines[:20]:
-        if len(line) > 60 or len(line) < 3:
-            continue
-        if line.lower() in SKIP_LINES or '@' in line or re.search(r'\d', line):
-            continue
-        m = NAME_PATTERN_FULL.match(line)
-        if m and _looks_like_name(m.group(1)):
-            return m.group(1).strip()
+    # Work on compact header region
+    header = raw_text[:600]
 
-    # Strategy 2 – name at start of (possibly collapsed) line
-    for line in lines[:20]:
-        if '@' in line:
-            continue
-        m = NAME_PATTERN_START.match(line)
-        if m and _looks_like_name(m.group(1)):
-            return m.group(1).strip()
+    # Strip noise: emails, phones, URLs, special chars
+    header = EMAIL_RE.sub(' ', header)
+    header = PHONE_RE.sub(' ', header)
+    header = re.sub(r'https?://\S+', ' ', header)
+    header = re.sub(r'[,|•·/\\@#]', ' ', header)
+    header = re.sub(r'\s+', ' ', header).strip()
 
-    # Strategy 3 – scan raw beginning of text for Title-Case 2-word group
-    for line in lines[:10]:
-        if '@' in line or re.search(r'\d{4,}', line):
-            continue
-        for m in NAME_PATTERN_ANY.finditer(line):
-            candidate = m.group(1)
-            if _looks_like_name(candidate):
-                return candidate
+    # Find first Title-Case word group that passes the name test
+    for m in NAME_RE.finditer(header):
+        candidate = m.group(1)
+        if _looks_like_name(candidate):
+            return candidate
 
     return 'Unknown'
 
@@ -208,15 +191,14 @@ class ResumeParser:
     """Regex + keyword based resume parser, robust to collapsed PDF text."""
 
     def __init__(self, pdf_path: str):
-        self.pdf_path = pdf_path
+        self.pdf_path  = pdf_path
         self._raw_text = extract_text_from_pdf(pdf_path)
         self._lines    = _clean_lines(self._raw_text)
-        # Re-join the cleaned lines for regex searches
         self._text     = '\n'.join(self._lines)
 
     def get_extracted_data(self) -> dict:
         return {
-            'name':          _extract_name(self._lines),
+            'name':          _extract_name(self._raw_text),
             'email':         self._extract_email(),
             'mobile_number': self._extract_phone(),
             'skills':        self._extract_skills(),
@@ -239,7 +221,7 @@ class ResumeParser:
             pattern = r'\b' + re.escape(skill) + r'\b'
             if re.search(pattern, text_lower):
                 found.append(skill.title())
-        return list(dict.fromkeys(found))  # deduplicate, preserve order
+        return list(dict.fromkeys(found))
 
     def _extract_degree(self) -> list:
         matches = DEGREE_RE.findall(self._raw_text)
