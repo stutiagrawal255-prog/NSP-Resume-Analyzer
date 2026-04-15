@@ -207,15 +207,23 @@ def run():
             if resume_data:
                 resume_text = pdf_reader(save_image_path)
 
+                # Validate extracted name — if too long it's the raw PDF blob
+                raw_name = resume_data.get('name') or ''
+                display_name = raw_name if (0 < len(raw_name) <= 60 and '\n' not in raw_name) else 'there'
+
                 st.header("**Resume Analysis 🤘**")
-                st.success("Hello " + (resume_data.get('name') or 'there') + "!")
+                st.success("Hello " + display_name + "!")
                 st.subheader("**Your Basic Info 👀**")
                 try:
-                    st.text('Name: '   + str(resume_data.get('name', 'N/A')))
-                    st.text('Email: '  + str(resume_data.get('email', 'N/A')))
-                    st.text('Contact: '+ str(resume_data.get('mobile_number', 'N/A')))
-                    st.text('Degree: ' + str(resume_data.get('degree', 'N/A')))
-                    st.text('Resume pages: ' + str(resume_data.get('no_of_pages', 1)))
+                    name_val    = raw_name if (0 < len(raw_name) <= 60) else 'Could not detect'
+                    email_val   = resume_data.get('email', '') or 'Could not detect'
+                    contact_val = resume_data.get('mobile_number', '') or 'Could not detect'
+                    degree_val  = str(resume_data.get('degree', '') or 'N/A')
+                    st.text('Name: '        + name_val)
+                    st.text('Email: '       + email_val)
+                    st.text('Contact: '     + contact_val)
+                    st.text('Degree: '      + degree_val)
+                    st.text('Resume pages: '+ str(resume_data.get('no_of_pages', 1)))
                 except Exception:
                     pass
 
