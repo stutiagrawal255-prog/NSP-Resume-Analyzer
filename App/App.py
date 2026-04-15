@@ -231,10 +231,6 @@ def run():
                 except Exception:
                     pass
 
-                # Debug expander — shows raw PDF text for troubleshooting
-                with st.expander("🔍 Debug: Raw Extracted Text (first 600 chars)"):
-                    raw_preview = resume_data.get('_raw_preview', resume_text[:600] if resume_text else 'N/A')
-                    st.code(raw_preview, language=None)
 
 
                 # Experience level

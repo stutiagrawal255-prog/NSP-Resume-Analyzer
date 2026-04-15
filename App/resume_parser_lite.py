@@ -127,8 +127,8 @@ def _name_from_text(text: str) -> str:
     Handles: 'Deepesh Kumar Mahawar, Cyber Security Analyst'
              'DEEPESH KUMAR MAHAWAR'
              'Deepesh Kumar Mahawar'
+             'Stuti Agrawal'
     """
-    # Strip noise
     t = EMAIL_RE.sub('', text)
     t = PHONE_RE.sub('', t)
     t = re.sub(r'\d+', '', t)
@@ -136,31 +136,64 @@ def _name_from_text(text: str) -> str:
 
     # Split on comma — name is before the comma
     candidate = t.split(',')[0].strip()
+    # Split on '|' or '-' too (some resumes: 'Name | Job Title')
+    candidate = re.split(r'[|\-–—]', candidate)[0].strip()
 
-    # Normalize to Title-Case (handles ALL-CAPS from bold PDF text)
+    # Normalize to Title-Case (handles ALL-CAPS bold text)
     candidate = candidate.title()
 
     words = candidate.split()
     if not (2 <= len(words) <= 5):
         return ''
-    # All words must be alpha only
+    # All words must be alphabetic
     if not all(re.match(r'^[A-Za-z]+$', w) for w in words):
         return ''
-    # Must not be all skip words
+    # Must not contain skip words
     if any(w.lower() in SKIP_WORDS for w in words):
         return ''
     return candidate
 
 
 def _extract_name_from_lines(positional_lines: list) -> str:
-    """
-    Walk through positional lines (top→bottom) and try each as a name.
-    The name is almost always in the top 5 lines.
-    """
+    """Walk positional lines (top→bottom) and try each as a name."""
     for _, line_text in positional_lines[:8]:
         name = _name_from_text(line_text)
         if name:
             return name
+    return ''
+
+
+def _extract_name_from_raw(raw_text: str) -> str:
+    """
+    Fallback name extraction from raw text.
+    Key insight: the email is always in the header near the name.
+    So we look at text BEFORE the first email occurrence.
+    """
+    # Strategy A: find email, take text before it, look for name
+    email_match = EMAIL_RE.search(raw_text)
+    if email_match:
+        pre_email = raw_text[:email_match.start()]
+        # Split into lines, try each going backwards (closest to email first)
+        lines = [l.strip() for l in re.split(r'[\n\r|,;]+', pre_email) if l.strip()]
+        for line in reversed(lines[-10:]):
+            name = _name_from_text(line)
+            if name:
+                return name
+        # Also try from the beginning
+        for line in lines[:5]:
+            name = _name_from_text(line)
+            if name:
+                return name
+
+    # Strategy B: scan first 200 chars of raw text line by line
+    for line in re.split(r'[\n\r]+', raw_text[:300]):
+        line = line.strip()
+        if not line:
+            continue
+        name = _name_from_text(line)
+        if name:
+            return name
+
     return 'Unknown'
 
 
@@ -193,18 +226,17 @@ class ResumeParser:
         self._raw_text  = _clean_raw_text(self._raw_text)
 
     def get_extracted_data(self) -> dict:
+        # Try positional (layout API) extraction first, fall back to raw text
+        name = _extract_name_from_lines(self._pos_lines)
+        if not name:
+            name = _extract_name_from_raw(self._raw_text)
         return {
-            'name':          _extract_name_from_lines(self._pos_lines),
+            'name':          name,
             'email':         self._extract_email(),
             'mobile_number': self._extract_phone(),
             'skills':        self._extract_skills(),
             'degree':        self._extract_degree(),
             'no_of_pages':   count_pages(self.pdf_path),
-            # Debug: show first 8 positional lines so we can see what parser sees
-            '_raw_preview':  '\n'.join(
-                f'[line {i+1} y={y:.0f}]: {txt}'
-                for i, (y, txt) in enumerate(self._pos_lines[:12])
-            ),
         }
 
     def _extract_email(self) -> str:
